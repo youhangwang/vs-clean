@@ -38,53 +38,53 @@ func (r *CleanVGSReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
 	}
 
-	for _, rs := range rgs.Status.VolumeSnapshotRefList {
-		logger.Info("Get VolumeSnapshot from VolumeGroupSnapshot")
-
-		volumeSnapshot := &vsv1.VolumeSnapshot{}
-		if err := r.Client.Get(ctx, types.NamespacedName{Name: rs.Name, Namespace: rs.Namespace}, volumeSnapshot); err != nil {
-			if errors.IsNotFound(err) {
-				continue
-			}
-			return ctrl.Result{RequeueAfter: 30 * time.Second}, err
-		}
-
-		if err := r.Client.Delete(ctx, volumeSnapshot); err != nil {
-			if errors.IsNotFound(err) {
-				continue
-			}
-			return ctrl.Result{RequeueAfter: 30 * time.Second}, err
-		}
-
-		if !volumeSnapshot.DeletionTimestamp.IsZero() {
-			logger.Info("VolumeSnapshot from VolumeGroupSnapshot is under deleting")
-
-			if time.Now().After(volumeSnapshot.DeletionTimestamp.Add(10 * time.Second)) {
-				logger.Info("VolumeSnapshot from VolumeGroupSnapshot is under deleting more than 10s")
-
-				if err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
-					volumeSnapshot := &vsv1.VolumeSnapshot{}
-					if err := r.Client.Get(ctx, types.NamespacedName{Name: rs.Name, Namespace: rs.Namespace}, volumeSnapshot); err != nil {
-						return err
-					}
-
-					volumeSnapshot.Finalizers = []string{}
-					return r.Client.Update(ctx, volumeSnapshot)
-				}); err != nil {
-					if errors.IsNotFound(err) {
-						continue
-					}
-					return ctrl.Result{RequeueAfter: 30 * time.Second}, err
-				}
-
-			} else {
-				return ctrl.Result{RequeueAfter: 10 * time.Second}, nil
-			}
-		}
-	}
-
 	if !rgs.DeletionTimestamp.IsZero() {
 		logger.Info("VolumeGroupSnapshot is under deleting")
+
+		for _, rs := range rgs.Status.VolumeSnapshotRefList {
+			logger.Info("Get VolumeSnapshot from VolumeGroupSnapshot")
+
+			volumeSnapshot := &vsv1.VolumeSnapshot{}
+			if err := r.Client.Get(ctx, types.NamespacedName{Name: rs.Name, Namespace: rs.Namespace}, volumeSnapshot); err != nil {
+				if errors.IsNotFound(err) {
+					continue
+				}
+				return ctrl.Result{RequeueAfter: 30 * time.Second}, err
+			}
+
+			if err := r.Client.Delete(ctx, volumeSnapshot); err != nil {
+				if errors.IsNotFound(err) {
+					continue
+				}
+				return ctrl.Result{RequeueAfter: 30 * time.Second}, err
+			}
+
+			if !volumeSnapshot.DeletionTimestamp.IsZero() {
+				logger.Info("VolumeSnapshot from VolumeGroupSnapshot is under deleting")
+
+				if time.Now().After(volumeSnapshot.DeletionTimestamp.Add(10 * time.Second)) {
+					logger.Info("VolumeSnapshot from VolumeGroupSnapshot is under deleting more than 10s")
+
+					if err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+						volumeSnapshot := &vsv1.VolumeSnapshot{}
+						if err := r.Client.Get(ctx, types.NamespacedName{Name: rs.Name, Namespace: rs.Namespace}, volumeSnapshot); err != nil {
+							return err
+						}
+
+						volumeSnapshot.Finalizers = []string{}
+						return r.Client.Update(ctx, volumeSnapshot)
+					}); err != nil {
+						if errors.IsNotFound(err) {
+							continue
+						}
+						return ctrl.Result{RequeueAfter: 30 * time.Second}, err
+					}
+
+				} else {
+					return ctrl.Result{RequeueAfter: 10 * time.Second}, nil
+				}
+			}
+		}
 
 		if time.Now().After(rgs.DeletionTimestamp.Add(10 * time.Second)) {
 			logger.Info("VolumeGroupSnapshot is under deleting more than 10s")
