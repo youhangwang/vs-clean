@@ -6,6 +6,7 @@ import (
 
 	vgsv1alphfa1 "github.com/kubernetes-csi/external-snapshotter/client/v7/apis/volumegroupsnapshot/v1alpha1"
 	vsv1 "github.com/kubernetes-csi/external-snapshotter/client/v7/apis/volumesnapshot/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -38,7 +39,10 @@ func (r *CleanVGSReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 		volumeSnapshot := &vsv1.VolumeSnapshot{}
 		if err := r.Client.Get(ctx, types.NamespacedName{Name: rs.Name, Namespace: rs.Namespace}, volumeSnapshot); err != nil {
-			return ctrl.Result{}, client.IgnoreNotFound(err)
+			if errors.IsNotFound(err) {
+				continue
+			}
+			return ctrl.Result{}, err
 		}
 
 		if !volumeSnapshot.DeletionTimestamp.IsZero() {
@@ -56,7 +60,10 @@ func (r *CleanVGSReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 					volumeSnapshot.Finalizers = []string{}
 					return r.Client.Update(ctx, volumeSnapshot)
 				}); err != nil {
-					return ctrl.Result{}, client.IgnoreNotFound(err)
+					if errors.IsNotFound(err) {
+						continue
+					}
+					return ctrl.Result{}, err
 				}
 
 			} else {
