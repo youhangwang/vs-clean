@@ -70,7 +70,8 @@ spec:
         - /manager
         args:
         - --leader-elect
-        image: vs-clean:latest
+        image: docker.io/library/vs-clean:latest
+        imagePullPolicy: IfNotPresent
         name: manager
         securityContext:
           allowPrivilegeEscalation: false
