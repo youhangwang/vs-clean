@@ -34,6 +34,10 @@ func (r *CleanVGSReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
+	if rgs.Status == nil {
+		return ctrl.Result{}, nil
+	}
+
 	for _, rs := range rgs.Status.VolumeSnapshotRefList {
 		logger.Info("Get VolumeSnapshot from VolumeGroupSnapshot")
 
