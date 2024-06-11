@@ -49,6 +49,13 @@ func (r *CleanVGSReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 			return ctrl.Result{RequeueAfter: 30 * time.Second}, err
 		}
 
+		if err := r.Client.Delete(ctx, volumeSnapshot); err != nil {
+			if errors.IsNotFound(err) {
+				continue
+			}
+			return ctrl.Result{RequeueAfter: 30 * time.Second}, err
+		}
+
 		if !volumeSnapshot.DeletionTimestamp.IsZero() {
 			logger.Info("VolumeSnapshot from VolumeGroupSnapshot is under deleting")
 
