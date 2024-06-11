@@ -35,7 +35,7 @@ func (r *CleanVGSReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	}
 
 	if rgs.Status == nil {
-		return ctrl.Result{}, nil
+		return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
 	}
 
 	for _, rs := range rgs.Status.VolumeSnapshotRefList {
@@ -46,7 +46,7 @@ func (r *CleanVGSReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 			if errors.IsNotFound(err) {
 				continue
 			}
-			return ctrl.Result{}, err
+			return ctrl.Result{RequeueAfter: 30 * time.Second}, err
 		}
 
 		if !volumeSnapshot.DeletionTimestamp.IsZero() {
@@ -67,7 +67,7 @@ func (r *CleanVGSReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 					if errors.IsNotFound(err) {
 						continue
 					}
-					return ctrl.Result{}, err
+					return ctrl.Result{RequeueAfter: 30 * time.Second}, err
 				}
 
 			} else {
@@ -91,7 +91,7 @@ func (r *CleanVGSReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 				rgs.Finalizers = []string{}
 				return r.Client.Update(ctx, rgs)
 			}); err != nil {
-				return ctrl.Result{}, client.IgnoreNotFound(err)
+				return ctrl.Result{RequeueAfter: 30 * time.Second}, client.IgnoreNotFound(err)
 			}
 		} else {
 			return ctrl.Result{RequeueAfter: 10 * time.Second}, nil

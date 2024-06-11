@@ -45,7 +45,7 @@ func (r *CleanVSReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 				volumeSnapshot.Finalizers = []string{}
 				return r.Client.Update(ctx, volumeSnapshot)
 			}); err != nil {
-				return ctrl.Result{}, client.IgnoreNotFound(err)
+				return ctrl.Result{RequeueAfter: 30 * time.Second}, client.IgnoreNotFound(err)
 			}
 
 		} else {
@@ -53,7 +53,7 @@ func (r *CleanVSReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		}
 	}
 
-	return ctrl.Result{}, nil
+	return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
