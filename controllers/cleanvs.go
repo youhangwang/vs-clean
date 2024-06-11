@@ -23,7 +23,7 @@ type CleanVSReconciler struct {
 
 func (r *CleanVSReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
-	logger.Info("reconcile enter")
+	logger.Info("Get VolumeSnapshot")
 
 	vs := &vsv1.VolumeSnapshot{}
 	if err := r.Client.Get(ctx, req.NamespacedName, vs); err != nil {
@@ -31,7 +31,10 @@ func (r *CleanVSReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	}
 
 	if !vs.DeletionTimestamp.IsZero() {
+		logger.Info("VolumeSnapshot is under deleting")
+
 		if time.Now().After(vs.DeletionTimestamp.Add(10 * time.Second)) {
+			logger.Info("VolumeSnapshot is under deleting more than 10s")
 
 			if err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
 				volumeSnapshot := &vsv1.VolumeSnapshot{}

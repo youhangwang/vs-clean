@@ -25,7 +25,8 @@ type CleanVGSReconciler struct {
 
 func (r *CleanVGSReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
-	logger.Info("reconcile enter")
+
+	logger.Info("Get VolumeGroupSnapshot")
 
 	rgs := &vgsv1alphfa1.VolumeGroupSnapshot{}
 	if err := r.Client.Get(ctx, req.NamespacedName, rgs); err != nil {
@@ -33,12 +34,18 @@ func (r *CleanVGSReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	}
 
 	for _, rs := range rgs.Status.VolumeSnapshotRefList {
+		logger.Info("Get VolumeSnapshot from VolumeGroupSnapshot")
+
 		volumeSnapshot := &vsv1.VolumeSnapshot{}
 		if err := r.Client.Get(ctx, types.NamespacedName{Name: rs.Name, Namespace: rs.Namespace}, volumeSnapshot); err != nil {
 			return ctrl.Result{}, client.IgnoreNotFound(err)
 		}
+
 		if !volumeSnapshot.DeletionTimestamp.IsZero() {
+			logger.Info("VolumeSnapshot from VolumeGroupSnapshot is under deleting")
+
 			if time.Now().After(volumeSnapshot.DeletionTimestamp.Add(10 * time.Second)) {
+				logger.Info("VolumeSnapshot from VolumeGroupSnapshot is under deleting more than 10s")
 
 				if err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
 					volumeSnapshot := &vsv1.VolumeSnapshot{}
@@ -59,7 +66,11 @@ func (r *CleanVGSReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	}
 
 	if !rgs.DeletionTimestamp.IsZero() {
+		logger.Info("VolumeGroupSnapshot is under deleting")
+
 		if time.Now().After(rgs.DeletionTimestamp.Add(10 * time.Second)) {
+			logger.Info("VolumeGroupSnapshot is under deleting more than 10s")
+
 			if err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
 				rgs := &vgsv1alphfa1.VolumeGroupSnapshot{}
 				if err := r.Client.Get(ctx, req.NamespacedName, rgs); err != nil {
