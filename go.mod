@@ -2,8 +2,6 @@ module github.com/vs-clean
 
 go 1.21
 
-toolchain go1.21.0
-
 require (
 	github.com/kubernetes-csi/external-snapshotter/client/v7 v7.0.0
 	k8s.io/apimachinery v0.29.0
