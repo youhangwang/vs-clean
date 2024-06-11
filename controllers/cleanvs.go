@@ -5,6 +5,7 @@ import (
 	"time"
 
 	vsv1 "github.com/kubernetes-csi/external-snapshotter/client/v7/apis/volumesnapshot/v1"
+	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -31,9 +32,19 @@ func (r *CleanVSReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 
 	if !vs.DeletionTimestamp.IsZero() {
 		if time.Now().After(vs.DeletionTimestamp.Add(10 * time.Second)) {
-			if err := r.Client.Delete(ctx, vs); err != nil {
+
+			if err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+				volumeSnapshot := &vsv1.VolumeSnapshot{}
+				if err := r.Client.Get(ctx, req.NamespacedName, volumeSnapshot); err != nil {
+					return err
+				}
+
+				volumeSnapshot.Finalizers = []string{}
+				return r.Client.Update(ctx, volumeSnapshot)
+			}); err != nil {
 				return ctrl.Result{}, client.IgnoreNotFound(err)
 			}
+
 		} else {
 			return ctrl.Result{RequeueAfter: 10 * time.Second}, nil
 		}

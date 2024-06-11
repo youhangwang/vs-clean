@@ -7,6 +7,7 @@ import (
 	vgsv1alphfa1 "github.com/kubernetes-csi/external-snapshotter/client/v7/apis/volumegroupsnapshot/v1alpha1"
 	vsv1 "github.com/kubernetes-csi/external-snapshotter/client/v7/apis/volumesnapshot/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -38,9 +39,19 @@ func (r *CleanVGSReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		}
 		if !volumeSnapshot.DeletionTimestamp.IsZero() {
 			if time.Now().After(volumeSnapshot.DeletionTimestamp.Add(10 * time.Second)) {
-				if err := r.Client.Delete(ctx, volumeSnapshot); err != nil {
+
+				if err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+					volumeSnapshot := &vsv1.VolumeSnapshot{}
+					if err := r.Client.Get(ctx, types.NamespacedName{Name: rs.Name, Namespace: rs.Namespace}, volumeSnapshot); err != nil {
+						return err
+					}
+
+					volumeSnapshot.Finalizers = []string{}
+					return r.Client.Update(ctx, volumeSnapshot)
+				}); err != nil {
 					return ctrl.Result{}, client.IgnoreNotFound(err)
 				}
+
 			} else {
 				return ctrl.Result{RequeueAfter: 10 * time.Second}, nil
 			}
@@ -49,7 +60,15 @@ func (r *CleanVGSReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 	if !rgs.DeletionTimestamp.IsZero() {
 		if time.Now().After(rgs.DeletionTimestamp.Add(10 * time.Second)) {
-			if err := r.Client.Delete(ctx, rgs); err != nil {
+			if err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+				rgs := &vgsv1alphfa1.VolumeGroupSnapshot{}
+				if err := r.Client.Get(ctx, req.NamespacedName, rgs); err != nil {
+					return err
+				}
+
+				rgs.Finalizers = []string{}
+				return r.Client.Update(ctx, rgs)
+			}); err != nil {
 				return ctrl.Result{}, client.IgnoreNotFound(err)
 			}
 		} else {
